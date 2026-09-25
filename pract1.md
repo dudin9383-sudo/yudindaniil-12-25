@@ -143,15 +143,203 @@ h hello include int main n printf return stdio void world
 ./reg banner
 ```
 
+В banner
+```
+echo "Hello world"
+```
+В reg
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# != 1 )); then
+  echo "Usage: $0 <program>" >&2
+  exit 1
+fi
+
+prog="$1"
+
+if [[ ! -f "$prog" ]]; then
+  echo "Not a file: $prog" >&2
+  exit 1
+fi
+
+sudo install -m 0755 -- "$prog" /usr/local/bin/
+```
+Команда
+```
+nano banner
+nano reg
+chmod +x reg
+./reg banner
+```
+
 В результате для banner задаются правильные права доступа и сам banner копируется в /usr/local/bin.
 
 ## Задача 6
 
 Написать программу для проверки наличия комментария в первой строке файлов с расширением c, js и py.
 
+В banner
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# == 0 )); then
+  echo "Usage: $0 <file-or-dir>..." >&2
+  exit 1
+fi
+
+check_file() {
+  local f="$1"
+  local first
+  first=$(head -n 1 -- "$f" 2>/dev/null || true)
+
+  case "$f" in
+    *.c|*.js)
+      if grep -Eq '^[[:space:]]*(//|/\*)' <<< "$first"; then
+        echo "$f: comment"
+      else
+        echo "$f: no comment"
+      fi
+      ;;
+    *.py)
+      if grep -Eq '^[[:space:]]*#' <<< "$first"; then
+        echo "$f: comment"
+      else
+        echo "$f: no comment"
+      fi
+      ;;
+  esac
+}
+
+for arg in "$@"; do
+  if [[ -d "$arg" ]]; then
+    while IFS= read -r -d '' f; do
+      check_file "$f"
+    done < <(find "$arg" -type f \( -name '*.c' -o -name '*.js' -o -name '*.py' \) -print0)
+  else
+    check_file "$arg"
+  fi
+done
+```
+Команда
+```
+nano banner
+chmod +x banner
+./banner p.py
+```
+Вывод
+```
+p.py: no comment
+```
+
 ## Задача 7
 
 Написать программу для нахождения файлов-дубликатов (имеющих 1 или более копий содержимого) по заданному пути (и подкаталогам).
+
+В banner
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# != 1 )); then
+  echo "Usage: $0 <directory>" >&2
+  exit 1
+fi
+
+dir="$1"
+
+find "$dir" -type f -print0 |
+  xargs -0 -r sha256sum |
+  sort -k1,1 |
+  awk '
+    {
+      hash=$1
+      $1=""
+      sub(/^ +/, "")
+      file=$0
+
+      if (hash == prev) {
+        if (!shown) {
+          print prev_file
+          shown=1
+        }
+        print file
+      } else {
+        shown=0
+      }
+
+      prev=hash
+      prev_file=file
+    }'
+```
+Команда
+```
+nano banner
+chmod +x banner
+./banner /etc
+```
+Вывод
+```
+find: ‘/etc/credstore.encrypted’: Permission denied
+find: ‘/etc/credstore’: Permission denied
+find: ‘/etc/ssl/private’: Permission denied
+find: ‘/etc/polkit-1/rules.d’: Permission denied
+sha256sum: /etc/sudoers: Permission denied
+sha256sum: /etc/gshadow: Permission denied
+sha256sum: /etc/gshadow-: Permission denied
+sha256sum: /etc/.pwd.lock: Permission denied
+sha256sum: /etc/landscape/client.conf: Permission denied
+sha256sum: /etc/sudoers.d/README: Permission denied
+sha256sum: /etc/shadow: Permission denied
+sha256sum: /etc/security/opasswd: Permission denied
+sha256sum: /etc/shadow-: Permission denied
+/etc/subgid
+/etc/subuid
+/etc/cloud/templates/ntp.conf.almalinux.tmpl
+/etc/cloud/templates/ntp.conf.cloudlinux.tmpl
+/etc/cloud/templates/ntp.conf.photon.tmpl
+/etc/cloud/templates/ntp.conf.rocky.tmpl
+/etc/cloud/templates/chrony.conf.fedora.tmpl
+/etc/cloud/templates/chrony.conf.photon.tmpl
+/etc/cron.d/.placeholder
+/etc/cron.daily/.placeholder
+/etc/cron.hourly/.placeholder
+/etc/cron.monthly/.placeholder
+/etc/cron.weekly/.placeholder
+/etc/cron.yearly/.placeholder
+/etc/magic
+/etc/magic.mime
+/etc/console-setup/Uni2-Fixed16.psf.gz
+/etc/console-setup/cached_Uni2-Fixed16.psf.gz
+/etc/cloud/templates/chrony.conf.opensuse-leap.tmpl
+/etc/cloud/templates/chrony.conf.opensuse-microos.tmpl
+/etc/cloud/templates/chrony.conf.opensuse-tumbleweed.tmpl
+/etc/cloud/templates/chrony.conf.opensuse.tmpl
+/etc/cloud/templates/chrony.conf.sle-micro.tmpl
+/etc/cloud/templates/chrony.conf.sle_hpc.tmpl
+/etc/cloud/templates/chrony.conf.sles.tmpl
+/etc/apparmor.d/local/lsb_release
+/etc/apparmor.d/local/nvidia_modprobe
+/etc/apparmor.d/local/ubuntu_pro_apt_news
+/etc/apparmor.d/local/ubuntu_pro_esm_cache
+/etc/apparmor.d/local/usr.bin.man
+/etc/apparmor.d/local/usr.lib.snapd.snap-confine.real
+/etc/apparmor.d/local/usr.sbin.rsyslogd
+/etc/cloud/cloud-init.disabled
+/etc/newt/palette.original
+/etc/sensors.d/.placeholder
+/etc/subgid-
+/etc/subuid-
+/etc/cloud/templates/ntp.conf.opensuse.tmpl
+/etc/cloud/templates/ntp.conf.sles.tmpl
+/etc/cloud/templates/chrony.conf.almalinux.tmpl
+/etc/cloud/templates/chrony.conf.centos.tmpl
+/etc/cloud/templates/chrony.conf.cloudlinux.tmpl
+/etc/cloud/templates/chrony.conf.rhel.tmpl
+/etc/cloud/templates/chrony.conf.rocky.tmpl
+```
 
 ## Задача 8
 

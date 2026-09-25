@@ -345,10 +345,78 @@ sha256sum: /etc/shadow-: Permission denied
 
 Написать программу, которая находит все файлы в данном каталоге с расширением, указанным в качестве аргумента и архивирует все эти файлы в архив tar.
 
+В banner
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# != 3 )); then
+  echo "Usage: $0 <directory> <extension> <archive.tar>" >&2
+  exit 1
+fi
+
+dir="$1"
+ext="${2#.}"
+archive="$3"
+
+find "$dir" -type f -name "*.$ext" -print0 |
+  tar --null -T - -cf "$archive"
+```
+Команда
+```
+nano banner
+chmod +x banner
+./banner /home/user/txt txt text_files.tar
+```
+
 ## Задача 9
 
 Написать программу, которая заменяет в файле последовательности из 4 пробелов на символ табуляции. Входной и выходной файлы задаются аргументами.
 
+В banner
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# != 2 )); then
+  echo "Usage: $0 <input> <output>" >&2
+  exit 1
+fi
+
+sed 's/    /\t/g' -- "$1" > "$2"
+```
+Команда
+```
+nano banner
+chmod +x banner
+./banner input.txt output.txt
+```
+
 ## Задача 10
 
 Написать программу, которая выводит названия всех пустых текстовых файлов в указанной директории. Директория передается в программу параметром. 
+
+В banner
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# != 1 )); then
+  echo "Usage: $0 <directory>" >&2
+  exit 1
+fi
+
+find "$1" -maxdepth 1 -type f -empty -printf '%f\n'
+```
+Команда
+```
+nano banner
+chmod +x banner
+./banner /etc
+```
+Вывод
+```
+.pwd.lock
+subuid-
+subgid-
+```

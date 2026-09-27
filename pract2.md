@@ -343,21 +343,176 @@ shared 2.0.0 не имеет зависимостей.
 shared 1.0.0 зависит от target ^1.0.0.
 target 2.0.0 и 1.0.0 не имеют зависимостей.
 
+В rootzav.mzn
+```
+enum PACKAGES = {root, foo, target, left, right, shared};
+
+array[PACKAGES] of set of int: versions = [
+    1..1,
+    1..2,
+    1..2,
+    1..1,
+    1..1,
+    1..2
+];
+
+array[PACKAGES] of var int: v;
+
+constraint forall(p in PACKAGES)(v[p] in versions[p]);
+
+constraint v[root] = 1;
+constraint v[foo] in {1, 2};
+constraint v[target] = 2;
+
+constraint (v[foo] = 2) -> (v[left] = 1 /\ v[right] = 1);
+constraint (v[left] = 1) -> (v[shared] in {1, 2});
+constraint (v[right] = 1) -> (v[shared] = 1);
+
+array[1..2] of string: foo_ver    = ["1.0.0", "1.1.0"];
+array[1..2] of string: target_ver = ["1.0.0", "2.0.0"];
+array[1..2] of string: shared_ver = ["1.0.0", "2.0.0"];
+
+solve satisfy;
+
+output [
+    "root: 1.0.0\n",
+    "foo: " ++ foo_ver[fix(v[foo])] ++ "\n",
+    "target: " ++ target_ver[fix(v[target])] ++ "\n",
+    "left: 1.0.0\n",
+    "right: 1.0.0\n",
+    "shared: " ++ shared_ver[fix(v[shared])] ++ "\n"
+];
+```
 Команда
 ```
-
+nano rootzav.mzn
+minizinc rootzav.mzn
 ```
 Вывод
 ```
-
+root: 1.0.0
+foo: 1.0.0
+target: 2.0.0
+left: 1.0.0
+right: 1.0.0
+shared: 1.0.0
 ```
 ## Задача 7
 Представить задачу о зависимостях пакетов в общей форме. Здесь необходимо действовать аналогично реальному менеджеру пакетов. То есть получить описание пакета, а также его зависимости в виде структуры данных. Например, в виде словаря. В предыдущих задачах зависимости были явно заданы в системе ограничений. Теперь же систему ограничений надо построить автоматически, по метаданным.
+
+В generator.py
+```
+packages = {
+    "root": {
+        "versions": ["1.0.0"],
+        "dependencies": {"1.0.0": [("foo", "^1.0.0"), ("target", "^2.0.0")]}
+    },
+    "foo": {
+        "versions": ["1.0.0", "1.1.0"],
+        "dependencies": {
+            "1.0.0": [],
+            "1.1.0": [("left", "^1.0.0"), ("right", "^1.0.0")]
+        }
+    },
+    "target": {
+        "versions": ["1.0.0", "2.0.0"],
+        "dependencies": {"1.0.0": [], "2.0.0": []}
+    },
+    "left": {
+        "versions": ["1.0.0"],
+        "dependencies": {"1.0.0": [("shared", ">=1.0.0")]}
+    },
+    "right": {
+        "versions": ["1.0.0"],
+        "dependencies": {"1.0.0": [("shared", "<2.0.0")]}
+    },
+    "shared": {
+        "versions": ["1.0.0", "2.0.0"],
+        "dependencies": {
+            "1.0.0": [("target", "^1.0.0")],
+            "2.0.0": []
+        }
+    }
+}
+
+def parse_version(v):
+    return tuple(int(x) for x in v.split("."))
+
+def version_satisfies(version_str, constraint_str):
+    v = parse_version(version_str)
+    if constraint_str.startswith("^"):
+        base = parse_version(constraint_str[1:])
+        return base <= v < (base[0] + 1, 0, 0)
+    if constraint_str.startswith(">="):
+        return v >= parse_version(constraint_str[2:])
+    if constraint_str.startswith("<="):
+        return v <= parse_version(constraint_str[2:])
+    if constraint_str.startswith("<"):
+        return v < parse_version(constraint_str[1:])
+    if constraint_str.startswith(">"):
+        return v > parse_version(constraint_str[1:])
+    if constraint_str.startswith("="):
+        return v == parse_version(constraint_str[1:])
+    return False
+
+def generate_mzn(packages):
+    lines = ["% Авто-сгенерированная модель MiniZinc", ""]
+    pkg_names = list(packages.keys())
+
+    lines.append("enum PACKAGES = {" + ", ".join(pkg_names) + "};")
+    lines.append("")
+    lines.append("array[PACKAGES] of set of int: versions = [")
+    for name in pkg_names:
+        n = len(packages[name]["versions"])
+        lines.append(f"    0..{n},")
+    lines.append("];")
+    lines.append("")
+    lines.append("array[PACKAGES] of var int: v;")
+    lines.append("constraint forall(p in PACKAGES)(v[p] in versions[p]);")
+    lines.append("")
+    lines.append("% root всегда установлен в версии 1.0.0 (индекс 1)")
+    lines.append("constraint v[root] = 1;")
+    lines.append("")
+
+    for name, info in packages.items():
+        for idx, ver_str in enumerate(info["versions"], start=1):
+            for dep_name, constraint_str in info["dependencies"].get(ver_str, []):
+                allowed = [
+                    dep_idx
+                    for dep_idx, dep_ver in enumerate(packages[dep_name]["versions"], start=1)
+                    if version_satisfies(dep_ver, constraint_str)
+                ]
+                if not allowed:
+                    lines.append(f"constraint v[{name}] != {idx};")
+                else:
+                    allowed_str = " \\/ ".join(f"v[{dep_name}] = {i}" for i in allowed)
+                    lines.append(f"constraint (v[{name}] = {idx}) -> ({allowed_str});")
+
+    lines.append("")
+    lines.append("solve satisfy;")
+    lines.append("")
+    lines.append("output [")
+    for name in pkg_names:
+        lines.append(f'    "{name}: \\(v[{name}])\\n",')
+    lines.append("];")
+    return "\n".join(lines)
+
+with open("package_deps.mzn", "w") as f:
+    f.write(generate_mzn(packages))
+print("Сгенерировано: package_deps.mzn")
+```
 Команда
 ```
-
+python3 generator.py
+minizinc package_deps.mzn
 ```
 Вывод
 ```
-
+Сгенерировано: package_deps.mzn
+root: 1
+foo: 1
+target: 2
+left: 0
+right: 0
+shared: 0
 ```

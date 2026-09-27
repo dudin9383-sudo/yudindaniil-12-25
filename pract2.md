@@ -246,9 +246,91 @@ SMT-решатель (Z3).
 
 Решить на MiniZinc задачу о счастливых билетах. Добавить ограничение на то, что все цифры билета должны быть различными (подсказка: используйте all_different). Найти минимальное решение для суммы 3 цифр.
 
+В happy_ticket.mzn
+```
+include "all_different.mzn";
+
+array[1..6] of var 0..9: digits;
+
+constraint all_different(digits);
+
+var 0..27: sum_left = digits[1] + digits[2] + digits[3];
+var 0..27: sum_right = digits[4] + digits[5] + digits[6];
+
+constraint sum_left = sum_right;
+
+solve minimize sum_left;
+
+output [
+    "Цифры билета: \(digits[1])\(digits[2])\(digits[3])-\(digits[4])\(digits[5])\(digits[6])\n",
+    "Сумма левой части: \(sum_left)\n",
+    "Сумма правой части: \(sum_right)\n"
+];
+```
+Команда
+```
+sudo apt install minizinc
+nano happy_ticket.mzn
+minizinc happy_ticket.mzn
+```
+Вывод
+```
+Цифры билета: 431-620
+Сумма левой части: 8
+Сумма правой части: 8
+```
 ## Задача 5
 Решить на MiniZinc задачу о зависимостях пакетов для рисунка, приведенного ниже.
+enum PACKAGES = {root, menu, dropdown, icons};
 
+В rootvis.mzn
+```
+array[PACKAGES] of set of int: versions = [
+    1..1,
+    1..6,
+    1..6,
+    1..2
+];
+
+array[PACKAGES] of var int: selected_version;
+
+constraint forall(p in PACKAGES)(selected_version[p] in versions[p]);
+
+constraint selected_version[root] = 1;
+
+predicate menu_dropdown_compat(var int: m, var int: d) =
+    (m = 6 /\ d = 6) \/
+    (m = 5 /\ d = 5) \/
+    (m = 4 /\ d = 4) \/
+    (m = 3 /\ d = 3) \/
+    (m = 2 /\ d = 1) \/
+    (m = 1 /\ d = 1);
+
+constraint menu_dropdown_compat(selected_version[menu], selected_version[dropdown]);
+
+constraint selected_version[icons] in versions[icons];
+
+solve satisfy;
+
+output [
+    "root: 1.0.0\n",
+    "menu: \(selected_version[menu])\n",
+    "dropdown: \(selected_version[dropdown])\n",
+    "icons: \(selected_version[icons])\n"
+];
+```
+Команда
+```
+nano rootvis.mzn
+minizinc rootvis.mzn
+```
+Вывод
+```
+root: 1.0.0
+menu: 1
+dropdown: 1
+icons: 1
+```
 ## Задача 6
 Решить на MiniZinc задачу о зависимостях пакетов для следующих данных:
 
@@ -261,5 +343,21 @@ shared 2.0.0 не имеет зависимостей.
 shared 1.0.0 зависит от target ^1.0.0.
 target 2.0.0 и 1.0.0 не имеют зависимостей.
 
+Команда
+```
+
+```
+Вывод
+```
+
+```
 ## Задача 7
 Представить задачу о зависимостях пакетов в общей форме. Здесь необходимо действовать аналогично реальному менеджеру пакетов. То есть получить описание пакета, а также его зависимости в виде структуры данных. Например, в виде словаря. В предыдущих задачах зависимости были явно заданы в системе ограничений. Теперь же систему ограничений надо построить автоматически, по метаданным.
+Команда
+```
+
+```
+Вывод
+```
+
+```

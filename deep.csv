@@ -1,0 +1,9 @@
+type,name,parent,size,content
+dir,home,/,0,
+dir,user,/home,0,
+dir,projects,/home/user,0,
+dir,work,/home/user/projects,0,
+file,main.py,/home/user/projects/work,13,cHJpbnQoJzEnKQo=
+file,readme.md,/home/user/projects/work,10,IyBSZWFkbWUK
+dir,etc,/,0,
+file,passwd,/etc,10,cm9vdDp4OjA6MAo=

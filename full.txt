@@ -1,0 +1,22 @@
+# полный тест всех команд
+help
+pwd
+ls /
+cd /home/user/projects
+ls
+cd work
+pwd
+cat main.py
+cat readme.md
+cd ../../..
+pwd
+ls /etc
+cat /etc/passwd
+cat /etc
+cd /
+cat /home/user/projects/work/main.py
+ls /nonexistent
+cd /nonexistent
+badcmd 1 2 3
+conf-dump
+exit

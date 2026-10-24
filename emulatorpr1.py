@@ -281,11 +281,6 @@ def parse_args():
 def main():
     args = parse_args()
 
-    print("=== emulator configuration ===")
-    print(f"vfs.path    = {args.vfs_path}")
-    print(f"script.path = {args.script}")
-    print("==============================")
-
     root = tk.Tk()
     emu = Emulator(root, vfs_path=args.vfs_path, script_path=args.script)
 
